@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>考卷聽讀小幫手</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f7f6f2; --surface: #ffffff; --surface2: #f0efe9;
+    --border: #e2e0d8; --border2: #cccab8;
+    --text: #1a1916; --text2: #6b6960; --text3: #9b9a92;
+    --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe; --blue-text: #1d4ed8;
+    --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0; --green-text: #15803d;
+    --amber: #d97706; --amber-bg: #fffbeb; --amber-border: #fde68a; --amber-text: #b45309;
+    --red: #dc2626; --red-bg: #fef2f2; --red-border: #fecaca; --red-text: #b91c1c;
+    --radius: 10px; --radius-lg: 14px;
+  }
+  body { font-family: 'Noto Sans TC', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 15px; line-height: 1.6; }
+  .app { max-width: 680px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  /* Header */
+  .header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+  .header-icon { width: 42px; height: 42px; background: var(--blue-bg); border: 1px solid var(--blue-border); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .header-icon svg { width: 20px; height: 20px; stroke: var(--blue); fill: none; stroke-width: 2; }
+  .header-title { font-size: 18px; font-weight: 700; }
+  .header-sub { font-size: 12px; color: var(--text2); margin-top: 1px; }
+  .status-badge { margin-left: auto; font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 20px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); display: flex; align-items: center; gap: 5px; white-space: nowrap; flex-shrink: 0; }
+  .status-badge.playing { background: var(--green-bg); color: var(--green-text); border-color: var(--green-border); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .dot.pulse { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+
+
+
+  /* Tabs */
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; background: var(--surface2); padding: 4px; border-radius: var(--radius); border: 1px solid var(--border); }
+  .tab { flex: 1; padding: 8px 4px; text-align: center; font-size: 12px; font-weight: 500; border-radius: 7px; cursor: pointer; color: var(--text2); transition: all 0.15s; user-select: none; }
+  .tab.active { background: var(--surface); color: var(--blue-text); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .tab-step { display: block; font-size: 10px; font-weight: 400; opacity: 0.7; margin-bottom: 1px; }
+
+  .phase { display: none; }
+  .phase.visible { display: block; }
+
+  /* Upload */
+  .upload-area { border: 2px dashed var(--border2); border-radius: var(--radius-lg); padding: 32px 20px; text-align: center; cursor: pointer; transition: all 0.15s; background: var(--surface); }
+  .upload-area:hover, .upload-area.dragover { border-color: var(--blue); background: var(--blue-bg); }
+  .upload-circle { width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
+  .upload-circle svg { width: 24px; height: 24px; stroke: var(--text2); fill: none; stroke-width: 1.5; }
+  .upload-title { font-size: 15px; font-weight: 500; margin-bottom: 5px; }
+  .upload-hint { font-size: 12px; color: var(--text2); }
+  .upload-formats { display: inline-flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; justify-content: center; }
+  .fmt-tag { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+  .preview-wrap { margin-top: 12px; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--border); position: relative; }
+  .preview-wrap img { width: 100%; display: block; max-height: 200px; object-fit: cover; }
+  .preview-tag { position: absolute; top: 8px; right: 8px; font-size: 11px; font-weight: 500; padding: 3px 9px; background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-border); border-radius: 20px; }
+  .action-row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font-size: 13px; font-weight: 500; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer; transition: all 0.12s; font-family: inherit; }
+  .btn:hover { background: var(--surface2); }
+  .btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
+  .btn.primary { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .btn.primary:hover { background: var(--blue-text); }
+  .btn.success { background: var(--green-bg); color: var(--green-text); border-color: var(--green-border); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* OCR */
+  .ocr-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 14px; }
+  .ocr-row { display: flex; align-items: center; gap: 10px; }
+  .spinner { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border2); border-top-color: var(--blue); animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .ocr-label { font-size: 13px; color: var(--text2); }
+  .ocr-label.done { color: var(--green-text); font-weight: 500; }
+  .ocr-label.error { color: var(--red-text); font-weight: 500; }
+  .prog-track { height: 5px; background: var(--surface2); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+  .prog-fill { height: 100%; background: var(--blue); border-radius: 3px; transition: width 0.4s ease; }
+
+  /* Error */
+  .error-box { background: var(--red-bg); border: 1px solid var(--red-border); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 14px; font-size: 13px; color: var(--red-text); display: none; }
+  .error-box.show { display: block; }
+
+  /* Question cards */
+  .q-list { display: flex; flex-direction: column; gap: 10px; }
+  .q-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 14px 16px; transition: border-color 0.15s; }
+  .q-card.active-q { border-color: var(--blue); background: var(--blue-bg); }
+  .q-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .q-badge { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--text2); margin-top: 1px; }
+  .q-card.active-q .q-badge { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .q-body { flex: 1; font-size: 14px; color: var(--text); line-height: 1.65; }
+  .q-play { width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0; border: 1px solid var(--border); background: var(--surface2); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.12s; }
+  .q-play:hover { background: var(--blue-bg); border-color: var(--blue-border); }
+  .q-play svg { width: 13px; height: 13px; fill: var(--text2); }
+  .q-card.active-q .q-play { background: var(--blue); border-color: var(--blue); }
+  .q-card.active-q .q-play svg { fill: #fff; }
+  .opts { display: flex; flex-direction: column; gap: 5px; }
+  .opt { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; transition: all 0.12s; background: var(--surface); }
+  .opt:hover { border-color: var(--border2); background: var(--surface2); }
+  .opt.active-o { border-color: var(--blue); background: var(--blue-bg); }
+  .opt-lbl { width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; font-weight: 700; color: var(--text2); display: flex; align-items: center; justify-content: center; }
+  .opt.active-o .opt-lbl { background: var(--blue); color: #fff; border-color: var(--blue); }
+  .opt-text { font-size: 13px; color: var(--text); flex: 1; line-height: 1.5; }
+  .opt-icon { flex-shrink: 0; display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text3); }
+  .opt.active-o .opt-icon { color: var(--blue-text); }
+  .opt-icon svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .to-play-btn { margin-top: 14px; display: flex; justify-content: flex-end; }
+
+  /* Controls */
+  .ctrl-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 14px; }
+  .ctrl-title { font-size: 12px; font-weight: 700; color: var(--text2); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 12px; }
+  .ctrl-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .ctrl-row:last-of-type { margin-bottom: 0; }
+  .ctrl-name { font-size: 13px; color: var(--text2); min-width: 36px; }
+  .ctrl-row input[type=range] { flex: 1; height: 4px; accent-color: var(--blue); cursor: pointer; }
+  .ctrl-val { font-size: 13px; font-weight: 500; min-width: 34px; text-align: right; }
+  .btn-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .btn-strip .btn { flex: 1; min-width: 80px; justify-content: center; }
+  .back-btn { display: flex; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+    </div>
+    <div>
+      <div class="header-title">考卷聽讀小幫手</div>
+      <div class="header-sub">上傳考卷 → AI 辨識 → 語音報讀</div>
+    </div>
+    <div class="status-badge" id="statusBadge">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">待機中</span>
+    </div>
+  </div>
+
+
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" id="tab1" onclick="goTab(1)"><span class="tab-step">第一步</span>上傳考卷</div>
+    <div class="tab" id="tab2" onclick="goTab(2)"><span class="tab-step">第二步</span>辨識結果</div>
+    <div class="tab" id="tab3" onclick="goTab(3)"><span class="tab-step">第三步</span>語音播放</div>
+  </div>
+
+  <!-- Phase 1 -->
+  <div class="phase visible" id="phase1">
+    <div class="upload-area" id="dropZone"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="ev(event,'over')" ondragleave="ev(event,'leave')" ondrop="ev(event,'drop')">
+      <div class="upload-circle">
+        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </div>
+      <div class="upload-title">點此拍照或選取考卷圖片</div>
+      <div class="upload-hint">AI 將自動辨識考卷內容並整理成題目</div>
+      <div class="upload-formats">
+        <span class="fmt-tag">JPG</span><span class="fmt-tag">PNG</span><span class="fmt-tag">WEBP</span>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="onFile(this)">
+    <div id="previewWrap" class="preview-wrap" style="display:none">
+      <img id="previewImg" src="" alt="考卷預覽">
+      <span class="preview-tag">已選取</span>
+    </div>
+    <div class="action-row">
+      <button class="btn primary" id="startBtn" style="display:none" onclick="startOCR()">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        AI 辨識考卷
+      </button>
+    </div>
+  </div>
+
+  <!-- Phase 2 -->
+  <div class="phase" id="phase2">
+    <div class="ocr-card">
+      <div class="ocr-row">
+        <div class="spinner" id="ocrSpinner"></div>
+        <span class="ocr-label" id="ocrLabel">正在將考卷傳送給 AI 辨識...</span>
+      </div>
+      <div class="prog-track"><div class="prog-fill" id="progFill" style="width:0%"></div></div>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+    <div id="qListWrap" class="q-list"></div>
+  </div>
+
+  <!-- Phase 3 -->
+  <div class="phase" id="phase3">
+    <div class="back-btn">
+      <button class="btn" onclick="goTab(2)">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+        回題目列表
+      </button>
+    </div>
+    <div class="ctrl-card">
+      <div class="ctrl-title">語音設定</div>
+      <div class="ctrl-row">
+        <span class="ctrl-name">語速</span>
+        <input type="range" min="0.5" max="2" step="0.1" value="0.9" id="rateSlider" oninput="setRate(this.value)">
+        <span class="ctrl-val" id="rateVal">0.9×</span>
+      </div>
+      <div class="ctrl-row">
+        <span class="ctrl-name">音調</span>
+        <input type="range" min="0.5" max="2" step="0.1" value="1" id="pitchSlider" oninput="setPitch(this.value)">
+        <span class="ctrl-val" id="pitchVal">1.0×</span>
+      </div>
+      <div class="btn-strip">
+        <button class="btn primary" onclick="playAll()">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          全部播放
+        </button>
+        <button class="btn" id="pauseBtn" onclick="pauseResume()">
+          <svg viewBox="0 0 24 24"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></svg>
+          暫停
+        </button>
+        <button class="btn" onclick="stopAll()">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+          停止
+        </button>
+      </div>
+    </div>
+    <div id="playListWrap" class="q-list"></div>
+  </div>
+
+</div>
+
+<script>
+  const synth = window.speechSynthesis;
+  let rate = 0.9, pitch = 1.0;
+  let queue = [], qIdx = 0;
+  let questions = [];
+  let apiKey = 'AIzaSyCnAgraiObW22kYjVVILEBShthtVm2ywBo';
+  let imageBase64 = '', imageMime = '';
+
+  // ── Tab ──────────────────────────────────────────
+  function goTab(n) {
+    [1,2,3].forEach(i => {
+      document.getElementById('tab'+i).classList.toggle('active', i===n);
+      document.getElementById('phase'+i).classList.toggle('visible', i===n);
+    });
+  }
+
+  // ── Upload ────────────────────────────────────────
+  function ev(e, type) {
+    e.preventDefault();
+    const z = document.getElementById('dropZone');
+    if (type==='over') z.classList.add('dragover');
+    if (type==='leave') z.classList.remove('dragover');
+    if (type==='drop') { z.classList.remove('dragover'); const f=e.dataTransfer.files[0]; if(f) loadFile(f); }
+  }
+  function onFile(input) { if(input.files[0]) loadFile(input.files[0]); }
+
+  function loadFile(file) {
+    imageMime = file.type || 'image/jpeg';
+    const r = new FileReader();
+    r.onload = e => {
+      const dataUrl = e.target.result;
+      imageBase64 = dataUrl.split(',')[1];
+      document.getElementById('previewImg').src = dataUrl;
+      document.getElementById('previewWrap').style.display = 'block';
+      document.getElementById('startBtn').style.display = 'inline-flex';
+    };
+    r.readAsDataURL(file);
+  }
+
+  // ── OCR via Gemini ────────────────────────────────
+  async function startOCR() {
+    if (!imageBase64) { alert('請先上傳考卷圖片'); return; }
+
+    goTab(2);
+    document.getElementById('qListWrap').innerHTML = '';
+    document.getElementById('errorBox').classList.remove('show');
+    document.getElementById('ocrSpinner').style.display = 'block';
+    document.getElementById('ocrLabel').className = 'ocr-label';
+    document.getElementById('ocrLabel').textContent = '正在將考卷傳送給 AI 辨識...';
+    document.getElementById('progFill').style.width = '30%';
+
+    const prompt = `請仔細分析這張考卷圖片，將所有題目辨識出來。
+
+請嚴格按照以下 JSON 格式回傳，不要加任何說明文字，只回傳 JSON：
+
+{
+  "questions": [
+    {
+      "number": 1,
+      "text": "題目內容（完整文字）",
+      "options": ["選項A內容", "選項B內容", "選項C內容", "選項D內容"]
+    }
+  ]
+}
+
+注意事項：
+- options 陣列只放選項的文字內容，不要包含 A、B、C、D 等標籤
+- 如果某題沒有選項（如填充題、問答題），options 設為空陣列 []
+- 數字、符號、數學式請盡量保留原文
+- 請辨識所有可見的題目`;
+
+    try {
+      document.getElementById('progFill').style.width = '60%';
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { text: prompt },
+                { inline_data: { mime_type: imageMime, data: imageBase64 } }
+              ]
+            }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+          })
+        }
+      );
+
+      if (!resp.ok) {
+        const err = await resp.json();
+        throw new Error(err.error?.message || 'API 回應錯誤 ' + resp.status);
+      }
+
+      const data = await resp.json();
+      document.getElementById('progFill').style.width = '85%';
+
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('AI 回傳格式錯誤，請重試');
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      questions = parsed.questions || [];
+      if (!questions.length) throw new Error('未能辨識到任何題目，請確認圖片是否清晰');
+
+      document.getElementById('progFill').style.width = '100%';
+      document.getElementById('ocrSpinner').style.display = 'none';
+      document.getElementById('ocrLabel').className = 'ocr-label done';
+      document.getElementById('ocrLabel').textContent = `辨識完成！共找到 ${questions.length} 道題目`;
+      renderQ2();
+
+    } catch(err) {
+      document.getElementById('ocrSpinner').style.display = 'none';
+      document.getElementById('ocrLabel').className = 'ocr-label error';
+      document.getElementById('ocrLabel').textContent = '辨識失敗';
+      const box = document.getElementById('errorBox');
+      box.textContent = '錯誤：' + err.message;
+      box.classList.add('show');
+    }
+  }
+
+  // ── Render Q list (phase 2) ────────────────────────
+  function renderQ2() {
+    const wrap = document.getElementById('qListWrap');
+    wrap.innerHTML = '';
+    questions.forEach((q, qi) => {
+      const div = document.createElement('div');
+      div.className = 'q-card'; div.id = 'qc2-'+qi;
+      div.innerHTML = `
+        <div class="q-head">
+          <div class="q-badge">${q.number}</div>
+          <div class="q-body">${q.text}</div>
+          <div class="q-play" onclick="speakQ(${qi},false)" title="朗讀題目">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+        </div>
+        <div class="opts">
+          ${q.options.map((o,oi)=>`
+            <div class="opt" id="o2-${qi}-${oi}" onclick="speakO(${qi},${oi},false)">
+              <div class="opt-lbl">${'ABCD'[oi]}</div>
+              <div class="opt-text">${o}</div>
+              <div class="opt-icon"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>點我朗讀</div>
+            </div>`).join('')}
+        </div>`;
+      wrap.appendChild(div);
+    });
+    const row = document.createElement('div');
+    row.className = 'to-play-btn';
+    row.innerHTML = `<button class="btn success" onclick="goPlay()">
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      前往語音播放
+    </button>`;
+    wrap.appendChild(row);
+  }
+
+  function goPlay() { renderPlay(); goTab(3); }
+
+  function renderPlay() {
+    const wrap = document.getElementById('playListWrap');
+    wrap.innerHTML = '';
+    questions.forEach((q, qi) => {
+      const div = document.createElement('div');
+      div.className = 'q-card'; div.id = 'qc3-'+qi;
+      div.innerHTML = `
+        <div class="q-head">
+          <div class="q-badge">${q.number}</div>
+          <div class="q-body">${q.text}</div>
+          <div class="q-play" onclick="speakQ(${qi},true)" title="朗讀題目">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          </div>
+        </div>
+        <div class="opts">
+          ${q.options.map((o,oi)=>`
+            <div class="opt" id="o3-${qi}-${oi}" onclick="speakO(${qi},${oi},true)">
+              <div class="opt-lbl">${'ABCD'[oi]}</div>
+              <div class="opt-text">${o}</div>
+              <div class="opt-icon"><svg viewBox="0 0 24 24"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>點我朗讀</div>
+            </div>`).join('')}
+        </div>`;
+      wrap.appendChild(div);
+    });
+  }
+
+  // ── Speech ────────────────────────────────────────
+  function clrHL() {
+    document.querySelectorAll('.q-card.active-q').forEach(e=>e.classList.remove('active-q'));
+    document.querySelectorAll('.opt.active-o').forEach(e=>e.classList.remove('active-o'));
+  }
+  function say(text, cb) {
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang='zh-TW'; u.rate=rate; u.pitch=pitch;
+    if(cb) u.onend=cb;
+    synth.speak(u);
+  }
+  function speakQ(qi, fromPlay) {
+    clrHL();
+    const card = document.getElementById((fromPlay?'qc3-':'qc2-')+qi);
+    if(card) card.classList.add('active-q');
+    const q = questions[qi];
+    say('第'+q.number+'題。'+q.text, ()=>{ if(card) card.classList.remove('active-q'); });
+    setStatus(true);
+  }
+  function speakO(qi, oi, fromPlay) {
+    clrHL();
+    const opt = document.getElementById((fromPlay?'o3-':'o2-')+qi+'-'+oi);
+    if(opt) opt.classList.add('active-o');
+    say('選項'+'ABCD'[oi]+'。'+questions[qi].options[oi], ()=>{ if(opt) opt.classList.remove('active-o'); });
+    setStatus(true);
+  }
+  function playAll() {
+    stopAll(); queue=[];
+    questions.forEach((q,qi)=>{
+      queue.push({type:'q',qi});
+      q.options.forEach((_,oi)=>queue.push({type:'o',qi,oi}));
+    });
+    qIdx=0; nextPlay();
+  }
+  function nextPlay() {
+    if(qIdx>=queue.length){ setStatus(false); clrHL(); return; }
+    const item=queue[qIdx]; clrHL();
+    if(item.type==='q'){
+      const card=document.getElementById('qc3-'+item.qi);
+      if(card){ card.classList.add('active-q'); card.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+      say('第'+questions[item.qi].number+'題。'+questions[item.qi].text, ()=>{ qIdx++; nextPlay(); });
+    } else {
+      const opt=document.getElementById('o3-'+item.qi+'-'+item.oi);
+      if(opt) opt.classList.add('active-o');
+      say('選項'+'ABCD'[item.oi]+'。'+questions[item.qi].options[item.oi], ()=>{ qIdx++; nextPlay(); });
+    }
+    setStatus(true);
+  }
+  function pauseResume() {
+    const btn=document.getElementById('pauseBtn');
+    if(synth.speaking && !synth.paused){
+      synth.pause(); setStatus(false);
+      btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><polygon points="5 3 19 12 5 21 5 3"/></svg> 繼續`;
+    } else if(synth.paused){
+      synth.resume(); setStatus(true);
+      btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></svg> 暫停`;
+    }
+  }
+  function stopAll() {
+    synth.cancel(); queue=[]; qIdx=0; clrHL(); setStatus(false);
+    document.getElementById('pauseBtn').innerHTML=`<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><line x1="6" y1="4" x2="6" y2="20"/><line x1="18" y1="4" x2="18" y2="20"/></svg> 暫停`;
+  }
+  function setRate(v){ rate=parseFloat(v); document.getElementById('rateVal').textContent=parseFloat(v).toFixed(1)+'×'; }
+  function setPitch(v){ pitch=parseFloat(v); document.getElementById('pitchVal').textContent=parseFloat(v).toFixed(1)+'×'; }
+  function setStatus(on){
+    const badge=document.getElementById('statusBadge');
+    const dot=document.getElementById('statusDot');
+    badge.classList.toggle('playing',on);
+    dot.classList.toggle('pulse',on);
+    document.getElementById('statusText').textContent=on?'播放中':'待機中';
+  }
+</script>
+</body>
+</html>
